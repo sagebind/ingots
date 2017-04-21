@@ -2,6 +2,18 @@ use std::io;
 use std::net::SocketAddr;
 
 
+pub const ENTRYPOINT_SYMBOL: &'static [u8] = b"ingot_entrypoint\0";
+
+/// A static function that produces an ingot instance.
+///
+/// This type is used when loading ingots from dynamic libraries. Web applications should provide a static `Entrypoint`
+/// function named `ingot_entrypoint` that creates an instance of the primary ingot of that crate so they can be loaded
+/// dynamically.
+///
+/// For entry point functions to be reachable, their names must not be mangled, and should always use the `#[no_mangle]`
+/// attribute.
+pub type Entrypoint = extern fn() -> Box<Ingot>;
+
 /// Primary trait for a Rust ingot. An ingot acts as an entry point for a web application, and provides methods for
 /// handling incoming HTTP requests.
 ///
@@ -10,15 +22,6 @@ use std::net::SocketAddr;
 pub trait Ingot: Send + Sync {
     fn handle(&self, context: &mut Context);
 }
-
-/// A static function that produces an ingot instance.
-///
-/// This type is used when loading ingots from dynamic libraries. Web applications should provide a static `Entrypoint`
-/// function that creates an instance of the primary ingot of that crate so they can be loaded dynamically.
-///
-/// For entry point functions to be reachable, their names must not be mangled, and should always use the `#[no_mangle]`
-/// attribute.
-pub type Entrypoint = extern fn() -> Box<Ingot>;
 
 /// Encapsulates the state of an individual HTTP request from the web server.
 pub trait Context {

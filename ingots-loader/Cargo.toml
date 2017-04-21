@@ -1,0 +1,15 @@
+[package]
+name = "ingots-loader"
+version = "0.1.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "Load ingots at runtime"
+
+[dependencies]
+libloading = "0.3.*"
+log = "^0.3"
+
+[dependencies.ingots]
+path = "../ingots"
+
+[dependencies.ingots-fastcgi]
+path = "../ingots-fastcgi"
