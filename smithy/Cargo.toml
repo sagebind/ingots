@@ -1,0 +1,8 @@
+[package]
+name = "smithy"
+version = "0.1.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "Web server that uses the Ingots API"
+
+[dependencies]
+dynamic_reload = "0.2.1"

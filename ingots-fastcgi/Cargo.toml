@@ -1,0 +1,11 @@
+[package]
+name = "ingots-fastcgi"
+version = "0.1.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "Run an ingot as a FastCGI process"
+
+[dependencies]
+fastcgi = "1.0.0-beta"
+
+[dependencies.ingots]
+path = "../ingots"
