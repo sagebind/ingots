@@ -1,0 +1,13 @@
+[server]
+idle_timeout = 100
+read_timeout = 233
+write_timeout = 32
+threads = 8
+port = 80
+host = "localhost"
+ssl = true
+
+[server.location./]
+ingot = "/var/www/ingots/root.so"
+root = "/var/www/x"
+ingot_entrypoint = "ingot_new"

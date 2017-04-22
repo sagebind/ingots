@@ -5,4 +5,13 @@ authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "Web server that uses the Ingots API"
 
 [dependencies]
-dynamic_reload = "0.2.1"
+hyper = "~0.10.9"
+log = "^0.3"
+simplelog = "0.4.2"
+toml = "~0.4"
+
+[dependencies.ingots]
+path = "../ingots"
+
+[dependencies.ingots-loader]
+path = "../ingots-loader"

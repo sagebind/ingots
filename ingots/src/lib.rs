@@ -2,7 +2,8 @@ use std::io;
 use std::net::SocketAddr;
 
 
-pub const ENTRYPOINT_SYMBOL: &'static [u8] = b"ingot_entrypoint\0";
+/// The default symbol name for an ingot entry point function.
+pub const ENTRYPOINT_DEFAULT_SYMBOL: &'static [u8] = b"ingot_entrypoint";
 
 /// A static function that produces an ingot instance.
 ///
@@ -12,7 +13,7 @@ pub const ENTRYPOINT_SYMBOL: &'static [u8] = b"ingot_entrypoint\0";
 ///
 /// For entry point functions to be reachable, their names must not be mangled, and should always use the `#[no_mangle]`
 /// attribute.
-pub type Entrypoint = extern fn() -> Box<Ingot>;
+pub type Entrypoint = fn() -> Box<Ingot>;
 
 /// Primary trait for a Rust ingot. An ingot acts as an entry point for a web application, and provides methods for
 /// handling incoming HTTP requests.
