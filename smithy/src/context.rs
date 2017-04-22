@@ -21,7 +21,7 @@ impl<'a, 'b: 'a> ServerContext<'a, 'b> {
     }
 }
 
-impl<'a, 'b: 'a> ingots::Context for ServerContext<'a, 'b> {
+impl<'a, 'b: 'a> ingots::http::Context for ServerContext<'a, 'b> {
     fn remote_addr(&self) -> SocketAddr {
         self.request.0.remote_addr.clone()
     }
@@ -34,18 +34,18 @@ impl<'a, 'b: 'a> ingots::Context for ServerContext<'a, 'b> {
         self.server_addr.ip().to_string()
     }
 
-    fn request(&self) -> &ingots::Request {
+    fn request(&self) -> &ingots::http::Request {
         &self.request
     }
 
-    fn response(&mut self) -> &mut ingots::Response {
+    fn response(&mut self) -> &mut ingots::http::Response {
         &mut self.response
     }
 }
 
 struct ServerRequest<'a, 'b: 'a>(Request<'a, 'b>);
 
-impl<'a, 'b> ingots::Request for ServerRequest<'a, 'b> {
+impl<'a, 'b> ingots::http::Request for ServerRequest<'a, 'b> {
     fn uri(&self) -> String {
         self.0.uri.to_string()
     }
@@ -75,7 +75,7 @@ impl<'a, 'b> io::Read for ServerRequest<'a, 'b> {
 
 struct ServerResponse<'a>(Response<'a, Streaming>);
 
-impl<'a> ingots::Response for ServerResponse<'a> {}
+impl<'a> ingots::http::Response for ServerResponse<'a> {}
 
 impl<'a> io::Write for ServerResponse<'a> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {

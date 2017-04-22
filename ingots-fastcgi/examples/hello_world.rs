@@ -5,7 +5,7 @@ extern crate ingots_fastcgi;
 struct HelloWorld;
 
 impl ingots::Ingot for HelloWorld {
-    fn handle(&self, context: &mut ingots::Context) {
+    fn handle(&self, context: &mut ingots::http::Context) {
         context.response().write_header("Content-Type", "text/plain");
         write!(context.response(), "\r\n");
 

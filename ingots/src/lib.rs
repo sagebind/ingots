@@ -1,19 +1,21 @@
-use std::io;
-use std::net::SocketAddr;
+#![allow(dead_code)]
+#[macro_use]
+extern crate log;
+
+#[cfg(feature = "dynamic")]
+pub mod dynamic;
+pub mod http;
+mod error;
+
+pub use error::*;
+use std::ops::{Deref, DerefMut};
 
 
-/// The default symbol name for an ingot entry point function.
-pub const ENTRYPOINT_DEFAULT_SYMBOL: &'static [u8] = b"ingot_entrypoint";
-
-/// A static function that produces an ingot instance.
-///
-/// This type is used when loading ingots from dynamic libraries. Web applications should provide a static `Entrypoint`
-/// function named `ingot_entrypoint` that creates an instance of the primary ingot of that crate so they can be loaded
-/// dynamically.
-///
-/// For entry point functions to be reachable, their names must not be mangled, and should always use the `#[no_mangle]`
-/// attribute.
-pub type Entrypoint = fn() -> Box<Ingot>;
+/// Get the version of the ingots specification this library conforms to.
+#[no_mangle]
+pub fn get_ingots_version() -> u16 {
+    1
+}
 
 /// Primary trait for a Rust ingot. An ingot acts as an entry point for a web application, and provides methods for
 /// handling incoming HTTP requests.
@@ -21,61 +23,60 @@ pub type Entrypoint = fn() -> Box<Ingot>;
 /// Ingots will be often used in asynchronous or multithreaded contexts, so every ingot is required to be thread-safe
 /// and must handle synchronization internally.
 pub trait Ingot: Send + Sync {
-    fn handle(&self, context: &mut Context);
+    fn handle(&self, context: &mut http::Context);
 }
 
-/// Encapsulates the state of an individual HTTP request from the web server.
-pub trait Context {
-    /// Get the address of the remote client.
-    fn remote_addr(&self) -> SocketAddr;
-
-    /// Get the address of the server.
-    fn server_addr(&self) -> SocketAddr;
-
-    /// Get the name of the server.
-    fn server_name(&self) -> String;
-
-    /// Get the HTTP request for the current request.
-    fn request(&self) -> &Request;
-
-    /// Get the HTTP response for the current request.
-    fn response(&mut self) -> &mut Response;
-}
-
-/// An incoming HTTP request.
+/// Owned pointer around an ingot object that is safe to share across binary boundaries.
 ///
-/// Provides information about a client request, including parameters, attributes, and a request body stream.
-pub trait Request: io::Read {
-    /// Get the request URI.
-    ///
-    /// The returned URI must start with "/" and must exclude the query string portion of the URI and the "?" separator.
-    /// If the request URI cannot be determined, this method should simply return "/".
-    fn uri(&self) -> String;
+/// Unlike a `Box`, this carries with it a pointer to a deallocation function. This ensures that the binary that
+/// originally allocated the value will also deallocate the value, even when dropped in a different binary.
+pub struct IngotBox {
+    /// Raw pointer to the inner value.
+    ptr: *mut Ingot,
 
-    /// Get the HTTP request method.
-    ///
-    /// The string returned is not required to follow strict casing. You should normalize the returned string before
-    /// checking for specific HTTP methods.
-    fn method(&self) -> String;
+    /// Pointer to the deallocator function.
+    free: fn(*mut Ingot),
+}
 
-    /// The protocol the request was made with, such as "HTTP/1.1".
-    fn protocol(&self) -> String;
+impl<T: Ingot + 'static> From<T> for IngotBox {
+    fn from(ingot: T) -> IngotBox {
+        fn free(ptr: *mut Ingot) {
+            unsafe {
+                Box::from_raw(ptr);
+            }
+        }
 
-    /// Get the query string contained in the request URI, if present.
-    fn query_string(&self) -> Option<String> {
-        None
-    }
-
-    /// Check if this is a secure HTTPS connection.
-    fn is_secure(&self) -> bool {
-        false
+        IngotBox {
+            ptr: Box::into_raw(Box::new(ingot)),
+            // This is what carries the current binary's implementation of `free` around with the value.
+            free: free,
+        }
     }
 }
 
-/// An outgoing HTTP response.
-pub trait Response: io::Write {
-    fn write_header(&mut self, name: &str, value: &str) -> io::Result<()> {
-        let header = format!("{}: {}\n", name, value);
-        self.write_all(header.as_bytes())
+impl Drop for IngotBox {
+    fn drop(&mut self) {
+        (self.free)(self.ptr);
     }
 }
+
+impl Deref for IngotBox {
+    type Target = Ingot + 'static;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe {
+            &*self.ptr
+        }
+    }
+}
+
+impl DerefMut for IngotBox {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe {
+            &mut *self.ptr
+        }
+    }
+}
+
+unsafe impl Send for IngotBox {}
+unsafe impl Sync for IngotBox {}

@@ -1,5 +1,4 @@
-use ingots::*;
-use ingots_loader::DynamicIngot;
+use ingots::dynamic::DynamicIngot;
 use std::path::PathBuf;
 
 

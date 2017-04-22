@@ -42,7 +42,7 @@ impl From<fastcgi::Request> for Context {
     }
 }
 
-impl ingots::Context for Context {
+impl ingots::http::Context for Context {
     fn remote_addr(&self) -> SocketAddr {
         self.remote_addr.clone()
     }
@@ -55,16 +55,16 @@ impl ingots::Context for Context {
         self.server_name.clone()
     }
 
-    fn request(&self) -> &ingots::Request {
+    fn request(&self) -> &ingots::http::Request {
         self
     }
 
-    fn response(&mut self) -> &mut ingots::Response {
+    fn response(&mut self) -> &mut ingots::http::Response {
         self
     }
 }
 
-impl ingots::Request for Context {
+impl ingots::http::Request for Context {
     fn uri(&self) -> String {
         self.fastcgi_request.param("REQUEST_URI").unwrap_or(String::from("/"))
     }
@@ -94,7 +94,7 @@ impl io::Read for Context {
     }
 }
 
-impl ingots::Response for Context {}
+impl ingots::http::Response for Context {}
 
 impl io::Write for Context {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
