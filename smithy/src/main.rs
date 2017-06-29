@@ -1,5 +1,6 @@
 extern crate hyper;
 extern crate ingots;
+extern crate ingots_loader;
 #[macro_use]
 extern crate log;
 extern crate simplelog;

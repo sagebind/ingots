@@ -1,9 +1,4 @@
 #![allow(dead_code)]
-#[macro_use]
-extern crate log;
-
-#[cfg(feature = "dynamic")]
-pub mod dynamic;
 pub mod http;
 mod error;
 
@@ -13,9 +8,7 @@ use std::ops::{Deref, DerefMut};
 
 /// Get the version of the ingots specification this library conforms to.
 #[no_mangle]
-pub fn get_ingots_version() -> u16 {
-    1
-}
+pub static INGOTS_VERSION: u16 = 1;
 
 /// Primary trait for a Rust ingot. An ingot acts as an entry point for a web application, and provides methods for
 /// handling incoming HTTP requests.
@@ -23,14 +16,21 @@ pub fn get_ingots_version() -> u16 {
 /// Ingots will be often used in asynchronous or multithreaded contexts, so every ingot is required to be thread-safe
 /// and must handle synchronization internally.
 pub trait Ingot: Send + Sync {
+    /// Handle a single HTTP request.
     fn handle(&self, context: &mut http::Context);
+
+    /// Called by the ingot server when the ingot is put into service.
+    fn start(&mut self) {}
+
+    /// Called by the ingot server when the ingot is shut down.
+    fn stop(&mut self) {}
 }
 
 /// Owned pointer around an ingot object that is safe to share across binary boundaries.
 ///
 /// Unlike a `Box`, this carries with it a pointer to a deallocation function. This ensures that the binary that
 /// originally allocated the value will also deallocate the value, even when dropped in a different binary.
-pub struct IngotBox {
+pub struct IngotRef {
     /// Raw pointer to the inner value.
     ptr: *mut Ingot,
 
@@ -38,15 +38,15 @@ pub struct IngotBox {
     free: fn(*mut Ingot),
 }
 
-impl<T: Ingot + 'static> From<T> for IngotBox {
-    fn from(ingot: T) -> IngotBox {
+impl<T: Ingot + 'static> From<T> for IngotRef {
+    fn from(ingot: T) -> IngotRef {
         fn free(ptr: *mut Ingot) {
             unsafe {
                 Box::from_raw(ptr);
             }
         }
 
-        IngotBox {
+        IngotRef {
             ptr: Box::into_raw(Box::new(ingot)),
             // This is what carries the current binary's implementation of `free` around with the value.
             free: free,
@@ -54,13 +54,13 @@ impl<T: Ingot + 'static> From<T> for IngotBox {
     }
 }
 
-impl Drop for IngotBox {
+impl Drop for IngotRef {
     fn drop(&mut self) {
         (self.free)(self.ptr);
     }
 }
 
-impl Deref for IngotBox {
+impl Deref for IngotRef {
     type Target = Ingot + 'static;
 
     fn deref(&self) -> &Self::Target {
@@ -70,7 +70,7 @@ impl Deref for IngotBox {
     }
 }
 
-impl DerefMut for IngotBox {
+impl DerefMut for IngotRef {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
             &mut *self.ptr
@@ -78,5 +78,5 @@ impl DerefMut for IngotBox {
     }
 }
 
-unsafe impl Send for IngotBox {}
-unsafe impl Sync for IngotBox {}
+unsafe impl Send for IngotRef {}
+unsafe impl Sync for IngotRef {}

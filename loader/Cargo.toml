@@ -1,0 +1,14 @@
+[package]
+name = "ingots-loader"
+version = "0.1.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "Loads ingots dynamically"
+keywords = ["ingots", "http", "server"]
+categories = ["web-programming"]
+
+[dependencies]
+log = "^0.3"
+libloading = "^0.4"
+
+[dependencies.ingots]
+path = "../ingots"

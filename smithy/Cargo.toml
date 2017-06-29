@@ -12,4 +12,6 @@ toml = "~0.4"
 
 [dependencies.ingots]
 path = "../ingots"
-features = ["dynamic"]
+
+[dependencies.ingots-loader]
+path = "../loader"

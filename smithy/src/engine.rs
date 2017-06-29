@@ -1,4 +1,4 @@
-use ingots::dynamic::DynamicIngot;
+use ingots_loader::DynamicIngot;
 use std::path::PathBuf;
 
 
@@ -27,7 +27,7 @@ impl IngotEngine {
 
         let container = IngotContainer {
             prefix: prefix,
-            instance: DynamicIngot::open(path).unwrap(),
+            instance: DynamicIngot::open(path),
         };
 
         self.containers.push(container);

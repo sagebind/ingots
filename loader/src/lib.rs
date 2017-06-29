@@ -1,7 +1,10 @@
 //! Loading of ingot objects at runtime using dynamic linking.
+extern crate ingots;
 extern crate libloading;
+#[macro_use]
+extern crate log;
 
-use super::*;
+use ingots::*;
 use self::libloading::{Library, Symbol};
 use std::path::*;
 
@@ -17,7 +20,7 @@ pub const DEFAULT_ENTRYPOINT: &'static str = "ingot_entrypoint";
 ///
 /// For entry point functions to be reachable, their names must not be mangled, and should always use the `#[no_mangle]`
 /// attribute.
-pub type Entrypoint = fn() -> IngotBox;
+pub type Entrypoint = extern fn() -> IngotRef;
 
 
 /// Wrapper around an ingot loaded dynamically at runtime.
@@ -25,31 +28,25 @@ pub struct DynamicIngot {
     path: PathBuf,
     symbol: Vec<u8>,
     library: Option<Library>,
-    ingot: Option<IngotBox>,
+    ingot: Option<IngotRef>,
 }
 
 impl DynamicIngot {
     /// Open a dynamic ingot from a shared library file.
-    pub fn open<P: Into<PathBuf>>(path: P) -> Result<Self, Error> {
+    pub fn open<P: Into<PathBuf>>(path: P) -> Self {
         Self::open_symbol(path, DEFAULT_ENTRYPOINT)
     }
 
     /// Open a dynamic ingot from a shared library file with a specific symbol name.
-    pub fn open_symbol<P: Into<PathBuf>, S: AsRef<[u8]>>(path: P, name: S) -> Result<Self, Error> {
+    pub fn open_symbol<P: Into<PathBuf>, S: AsRef<[u8]>>(path: P, name: S) -> Self {
         let mut symbol = name.as_ref().to_owned();
         symbol.push(0);
 
-        let mut ingot = Self {
+        Self {
             path: path.into(),
             symbol: symbol,
             library: None,
             ingot: None,
-        };
-
-        // Attempt to load the ingot before we return successfully.
-        match ingot.reload() {
-            Ok(_) => Ok(ingot),
-            Err(e) => Err(e),
         }
     }
 
@@ -75,7 +72,7 @@ impl DynamicIngot {
         };
 
         // Sanity check: verify ingot API is compatible.
-        if !Self::library_version_matches(&library, get_ingots_version()) {
+        if !Self::library_version_matches(&library, INGOTS_VERSION) {
             return Err(Error::VersionMismatch);
         }
 
@@ -106,14 +103,14 @@ impl DynamicIngot {
 
     /// Verify that the ingots version of a library matches the given version.
     fn library_version_matches(library: &Library, version: u16) -> bool {
-        let version_fn: Symbol<fn() -> u16> = match unsafe {
-            library.get(b"get_ingots_version\0")
+        let version_ptr: Symbol<u16> = match unsafe {
+            library.get(b"INGOTS_VERSION\0")
         } {
             Ok(v) => v,
             Err(_) => return false,
         };
 
-        let library_version = version_fn();
+        let library_version = *version_ptr;
         debug!("shared library has ingots version: {}", library_version);
 
         library_version == version

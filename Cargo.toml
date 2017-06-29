@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "fastcgi",
+    "ingots",
+    "loader",
+    "smithy",
+]

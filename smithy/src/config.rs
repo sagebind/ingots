@@ -1,3 +1,5 @@
+extern crate toml;
+
 use std::path::PathBuf;
 use std::time::Duration;
 

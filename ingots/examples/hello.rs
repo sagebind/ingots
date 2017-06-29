@@ -11,7 +11,7 @@ impl ingots::Ingot for HelloWorld {
 }
 
 #[no_mangle]
-pub fn ingot_entrypoint() -> ingots::IngotBox {
+pub extern fn ingot_entrypoint() -> ingots::IngotBox {
     HelloWorld.into()
 }
 
