@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate ingots;
 
 
@@ -10,9 +11,8 @@ impl ingots::Ingot for HelloWorld {
     }
 }
 
-#[no_mangle]
-pub extern fn ingot_entrypoint() -> ingots::IngotBox {
-    HelloWorld.into()
+ingot_init! {
+    HelloWorld
 }
 
 fn main() {}

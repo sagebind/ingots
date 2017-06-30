@@ -5,49 +5,48 @@ extern crate libloading;
 extern crate log;
 
 use ingots::*;
-use self::libloading::{Library, Symbol};
+use libloading::{Library, Symbol};
+use std::ops::{Deref, DerefMut};
 use std::path::*;
 
 
-/// The default symbol name for an ingot entry point function.
-pub const DEFAULT_ENTRYPOINT: &'static str = "ingot_entrypoint";
 
-/// A static function that produces an ingot instance.
-///
-/// This type is used when loading ingots from dynamic libraries. Web applications should provide a static `Entrypoint`
-/// function named `ingot_entrypoint` that creates an instance of the primary ingot of that crate so they can be loaded
-/// dynamically.
-///
-/// For entry point functions to be reachable, their names must not be mangled, and should always use the `#[no_mangle]`
-/// attribute.
-pub type Entrypoint = extern fn() -> IngotRef;
+#[derive(Clone, Copy, Debug)]
+pub enum Error {
+    LoadLibraryError,
+    VersionMismatch,
+    UndefinedSymbol,
+}
 
 
 /// Wrapper around an ingot loaded dynamically at runtime.
 pub struct DynamicIngot {
     path: PathBuf,
-    symbol: Vec<u8>,
-    library: Option<Library>,
-    ingot: Option<IngotRef>,
+    library: Library,
+    ptr: *mut Ingot,
 }
 
 impl DynamicIngot {
     /// Open a dynamic ingot from a shared library file.
-    pub fn open<P: Into<PathBuf>>(path: P) -> Self {
-        Self::open_symbol(path, DEFAULT_ENTRYPOINT)
-    }
+    pub fn open<P: Into<PathBuf>>(path: P) -> Result<Self, Error> {
+        let path = path.into();
+        let library = Self::load_library(&path)?;
 
-    /// Open a dynamic ingot from a shared library file with a specific symbol name.
-    pub fn open_symbol<P: Into<PathBuf>, S: AsRef<[u8]>>(path: P, name: S) -> Self {
-        let mut symbol = name.as_ref().to_owned();
-        symbol.push(0);
+        // Initialize the ingot instance.
+        let ptr = unsafe {
+            let __ingot_init: Symbol<extern fn() -> *mut Ingot> = match library.get(b"__ingot_init\0") {
+                Ok(v) => v,
+                Err(_) => return Err(Error::UndefinedSymbol),
+            };
 
-        Self {
+            __ingot_init()
+        };
+
+        Ok(Self {
             path: path.into(),
-            symbol: symbol,
-            library: None,
-            ingot: None,
-        }
+            library: library,
+            ptr: ptr,
+        })
     }
 
     /// Get the file system path of the ingot client.
@@ -55,80 +54,71 @@ impl DynamicIngot {
         &self.path
     }
 
-    /// Check if the ingot is currently loaded.
-    pub fn is_loaded(&self) -> bool {
-        self.ingot.is_some()
-    }
-
     /// Reload the ingot from the file system.
     pub fn reload(&mut self) -> Result<(), Error> {
-        // Unload the previous instance, if any.
-        self.unload();
+        match Self::open(self.path.clone()) {
+            Ok(v) => {
+                *self = v;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
 
-        // Open the shared library.
-        let library = match Library::new(&self.path) {
+    /// Load a shared library object.
+    fn load_library(path: &Path) -> Result<Library, Error> {
+        let library = match Library::new(path) {
             Ok(v) => v,
             Err(_) => return Err(Error::LoadLibraryError),
         };
 
         // Sanity check: verify ingot API is compatible.
-        if !Self::library_version_matches(&library, INGOTS_VERSION) {
+        let library_version = unsafe {
+            let symbol: Symbol<*mut u16> = library.get(b"INGOTS_VERSION\0").expect("error loading ingot ABI version");
+            **symbol
+        };
+
+        debug!("shared library has ingots version: {}", library_version);
+
+        if library_version != INGOTS_VERSION {
             return Err(Error::VersionMismatch);
         }
 
-        {
-            /// Find the symbol for the ingot entrypoint.
-            let entrypoint: Symbol<Entrypoint> = match unsafe {
-                library.get(&self.symbol)
-            } {
-                Ok(v) => v,
-                Err(_) => return Err(Error::EntrypointNotFound),
-            };
-
-            // Invoke the entrypoint function to create the ingot instance.
-            self.ingot = Some(entrypoint());
-        }
-
-        self.library = Some(library);
-
-        Ok(())
-    }
-
-    /// Unload the ingot instance.
-    pub fn unload(&mut self) {
-        // Make sure the ingot instance is dropped before the ingot library.
-        drop(self.ingot.take());
-        drop(self.library.take());
-    }
-
-    /// Verify that the ingots version of a library matches the given version.
-    fn library_version_matches(library: &Library, version: u16) -> bool {
-        let version_ptr: Symbol<u16> = match unsafe {
-            library.get(b"INGOTS_VERSION\0")
-        } {
-            Ok(v) => v,
-            Err(_) => return false,
-        };
-
-        let library_version = *version_ptr;
-        debug!("shared library has ingots version: {}", library_version);
-
-        library_version == version
-    }
-}
-
-impl Ingot for DynamicIngot {
-    fn handle(&self, context: &mut http::Context) {
-        if let Some(ref ingot) = self.ingot {
-            ingot.handle(context);
-        } else {
-            warn!("ingot not loaded, dropping request: {:?}", self.path);
-        }
+        Ok(library)
     }
 }
 
 impl Drop for DynamicIngot {
     fn drop(&mut self) {
-        self.unload();
+        // Drop the instance using __ingot_free().
+        unsafe {
+            if let Ok(__ingot_free) = self.library.get::<extern fn(*mut Ingot)>(b"__ingot_free\0") {
+                __ingot_free(self.ptr);
+            } else {
+                warn!("symbol missing: __ingot_free");
+                warn!("leaking memory");
+            }
+        }
     }
 }
+
+impl Deref for DynamicIngot {
+    type Target = Ingot + 'static;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe {
+            &*self.ptr
+        }
+    }
+}
+
+impl DerefMut for DynamicIngot {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe {
+            &mut *self.ptr
+        }
+    }
+}
+
+unsafe impl Send for DynamicIngot {}
+unsafe impl Sync for DynamicIngot {}

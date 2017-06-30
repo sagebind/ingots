@@ -56,7 +56,7 @@ pub trait Request: io::Read {
 
     /// Check if this request was made by JavaScript.
     ///
-    /// This is typically determined by checking the value of the `X-Requested-With` header.
+    /// This is typcially determined by checking the value of the `X-Requested-With` header.
     fn is_ajax(&self) -> bool {
         self.get_header("X-Requested-With") == Some("XMLHttpRequest")
     }
@@ -77,7 +77,7 @@ pub trait Response: io::Write {
     /// Check if the response headers have already been sent.
     fn headers_sent(&self) -> bool;
 
-    /// Send the request headers if they have not yet been sent.
+    /// Send the request headers if the have not yet been sent.
     ///
     /// This is done implicitly when the body is first written to.
     fn send_headers(&mut self);

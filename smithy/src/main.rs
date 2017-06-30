@@ -18,7 +18,7 @@ fn main() {
     let mut config = config::ServerConfig::default();
     config.add_location(config::Location {
         prefix: String::from("/"),
-        ingot: "../ingots/target/debug/examples/libhello-36268a9f5f7a7dea.so".into(),
+        ingot: "../target/debug/examples/libhello-2f78a9a51e5e3b87.so".into(),
     });
 
     let mut server = server::Server::new(config);

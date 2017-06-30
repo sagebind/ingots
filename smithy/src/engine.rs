@@ -25,9 +25,9 @@ impl IngotEngine {
 
         info!("Loading ingot {:?} under prefix {}", path, prefix);
 
-        let container = IngotContainer {
+        let mut container = IngotContainer {
             prefix: prefix,
-            instance: DynamicIngot::open(path),
+            instance: DynamicIngot::open(path).expect("could not load ingot"),
         };
 
         self.containers.push(container);

@@ -75,7 +75,11 @@ impl<'a, 'b> io::Read for ServerRequest<'a, 'b> {
 
 struct ServerResponse<'a>(Response<'a, Streaming>);
 
-impl<'a> ingots::http::Response for ServerResponse<'a> {}
+impl<'a> ingots::http::Response for ServerResponse<'a> {
+    fn get_status(&self) -> u8 {
+        200
+    }
+}
 
 impl<'a> io::Write for ServerResponse<'a> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
