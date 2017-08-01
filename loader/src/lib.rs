@@ -67,6 +67,8 @@ impl DynamicIngot {
 
     /// Load a shared library object.
     fn load_library(path: &Path) -> Result<Library, Error> {
+        debug!("loading shared library: {}", path.display());
+
         let library = match Library::new(path) {
             Ok(v) => v,
             Err(_) => return Err(Error::LoadLibraryError),

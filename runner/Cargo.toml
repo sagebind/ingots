@@ -1,0 +1,15 @@
+[package]
+name = "ingots-runner"
+version = "0.1.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+
+[dependencies]
+log = "^0.3"
+simplelog = "0.4.2"
+tiny_http = "0.5"
+
+[dependencies.ingots]
+path = "../ingots"
+
+[dependencies.ingots-loader]
+path = "../loader"

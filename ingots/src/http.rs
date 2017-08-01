@@ -3,6 +3,7 @@
 //! This HTTP module is not meant to be full-featured. The API was designed to have as little surface area as possible
 //! while still being idiomatic and easy to use. This helps reduce the amount of work required for both servers and
 //! handler frameworks to implement and use the interface.
+use std::borrow::Cow;
 use std::io;
 use std::net::SocketAddr;
 
@@ -10,7 +11,7 @@ use std::net::SocketAddr;
 pub type StatusCode = u16;
 
 /// Encapsulates the state of an individual HTTP request from the web server.
-pub trait Context {
+pub trait Context: Send {
     /// Get the address of the remote client.
     fn remote_addr(&self) -> SocketAddr;
 
@@ -18,7 +19,7 @@ pub trait Context {
     fn server_addr(&self) -> SocketAddr;
 
     /// Get the name of the server.
-    fn server_name(&self) -> String;
+    fn server_name(&self) -> &str;
 
     /// Get the HTTP request for the current request.
     fn request(&self) -> &Request;
@@ -30,24 +31,20 @@ pub trait Context {
 /// An incoming HTTP request.
 ///
 /// Provides information about a client request, including parameters, attributes, and a request body stream.
-pub trait Request: io::Read {
+pub trait Request: io::Read + Send {
     /// Get the HTTP request method.
     ///
     /// The string returned is not required to follow strict casing. You should normalize the returned string before
     /// checking for specific HTTP methods.
-    fn method(&self) -> String;
+    fn method(&self) -> Cow<str>;
 
-    /// Get the request URI.
-    ///
-    /// The returned URI must start with "/" and must exclude the query string portion of the URI and the "?" separator.
-    /// If the request URI cannot be determined, this method should simply return "/".
-    fn uri(&self) -> String;
+    /// Get the portion of the URI path that corresponds to this application object.
+    fn context_path(&self) -> Cow<str>;
 
-    /// The protocol the request was made with, such as "HTTP/1.1".
-    fn protocol(&self) -> String;
+    fn path_info(&self) -> Cow<str>;
 
     /// Get the query string contained in the request URI, if present.
-    fn query_string(&self) -> Option<String> {
+    fn query_string(&self) -> Option<Cow<str>> {
         None
     }
 
@@ -84,7 +81,7 @@ pub trait Request: io::Read {
 ///
 /// Response objects are not constructed by the application; they are constructed by the web server that is proxying the
 /// response. The response is a "write-oriented" API, where content is written to the response sequentially.
-pub trait Response: io::Write {
+pub trait Response: io::Write + Send {
     /// Get the response status code.
     fn status(&self) -> StatusCode;
 
@@ -120,7 +117,9 @@ pub trait Response: io::Write {
     ///
     /// This method *may* have no effect if the response body has been written partially or completely, or if headers
     /// have already been written.
-    fn set_buffering(&mut self, buffering: bool) -> bool;
+    fn set_buffering(&mut self, buffering: bool) -> bool {
+        false
+    }
 
     /// Check if the response headers have already been sent.
     fn headers_sent(&self) -> bool;

@@ -6,7 +6,7 @@ struct HelloWorld;
 
 impl ingots::Ingot for HelloWorld {
     fn handle(&self, context: &mut ingots::http::Context) {
-        context.response().write_header("Content-Type", "text/plain");
+        context.response().set_header("Content-Type", "text/plain".into());
         write!(context.response(), "\r\nHello");
     }
 }

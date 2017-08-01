@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_variables)]
 #[macro_use]
 mod abi;
 pub mod http;
