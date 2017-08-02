@@ -6,10 +6,9 @@ macro_rules! ingot_init {
 
         #[no_mangle]
         pub extern fn __ingot_init() -> *mut Ingot {
-            let mut instance = $init;
-            unsafe {
-                Box::into_raw(Box::new(instance))
-            }
+            Box::into_raw(Box::new({
+                $init
+            }))
         }
 
         #[no_mangle]

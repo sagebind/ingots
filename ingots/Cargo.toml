@@ -3,3 +3,6 @@ name = "ingots"
 version = "0.1.0"
 authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 categories = ["web-programming"]
+
+[dependencies]
+http = { git = 'https://github.com/carllerche/http' }
